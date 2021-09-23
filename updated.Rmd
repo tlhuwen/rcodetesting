@@ -1,0 +1,119 @@
+---
+title: "Coding test_Argus"
+output: pdf_document
+---
+
+
+```{r}
+library(gamlss)
+library(gamlss.add)
+library(gamlss.dist)
+library(DT)
+library(roll)
+library(dplyr)
+library(stats)
+library(tseries)
+library(ggpubr)
+library(psych)
+library(magrittr)
+```
+
+
+```{r}
+# import data
+
+oil_data <- gamlss.data::oil
+summary(oil_data)
+
+```
+
+
+```{r}
+paste0("Oil dataset has ", dim(oil_data)[1], " observations and  ", dim(oil_data)[2], " variables. ")
+```
+
+```{r}
+df <- as.data.frame(oil_data$OILPRICE)
+oil_data1 <- oil_data$OILPRICE
+oil_data2 <- oil_data$OILPRICE
+oil_data2 <- as.matrix(oil_data2)
+# rtolling standard deviation with window = 5
+roll_sd_dev <- roll::roll_sd(oil_data2, 5)
+df$roll_sd_dev <- roll_sd_dev
+# Rolling mean with window = 5
+roll_mean <- roll::roll_mean(oil_data2, 5)
+df$roll_mean <- roll_mean
+# Lagging with order = 2
+lag1 <- dplyr::lag(oil_data1,2)
+df$lag1<-lag1
+# Leading with order = 2
+lead <- dplyr::lead(oil_data1,2)
+df$lead<-lead
+Diff <- oil_data1 %>% diff()
+Diff[1000] <- NA
+df$diff <- Diff
+
+paste0("df has ", dim(df)[1], " observations and  ", dim(df)[2], " variables. ")
+head(df,n=10)
+```
+
+
+```{r}
+dfo<-df[, c("roll_sd_dev", "roll_mean")]
+df1 <- as.data.frame(dfo)
+Ratio <- df1[,1]/df1[,2]
+df1$Ratio<-Ratio
+Product <- df1[,1] * df1[,2]
+df1$Product<- Product
+head(df1, n = 10)
+
+```
+ 
+```{r}
+dfo2<-oil_data[,c("OILPRICE", "respLAG")]
+df2 <- as.data.frame(dfo2)
+diff <- (df2$OILPRICE - df2$respLAG)
+df2$difference <- diff
+diff <- as.matrix(diff)
+roll_std <- roll::roll_sd(diff, 5)
+comp_trans <- roll_std
+df2$comp_trans<-comp_trans
+head(df2, n = 10)
+```
+
+```{r}
+drivers <- cbind(df, df1, df2)
+drivers <- drivers[, c("oil_data$OILPRICE", "roll_sd_dev", "roll_mean", "lag1", "lead", "diff", "Ratio", "Product","comp_trans")]
+
+head(drivers, n = 10)
+```
+
+```{r}
+# check normality
+input_sd_dev<-drivers$roll_sd_dev
+ print(ggdensity(input_sd_dev, 
+          main = "Rolling Standard deviation",
+          xlab = ""))
+  shapiro.test(input_sd_dev)
+```
+
+```{r}
+# check stationarity
+input_mean<- drivers$roll_mean
+input_mean[is.na(input_mean)] <- 0
+tseries::adf.test(input_mean)
+```
+```{r}
+# check correlation
+input<-drivers
+input[is.na(input)] <- 0
+psych::corPlot(input, cex = 0.4)
+```
+
+
+I have used following links for the references of this test.
+https://rdrr.io/cran/gamlss.data/man/oil.html
+https://www.kaggle.com/gabrieloliveirasan/gamlss-in-r-oil-price-prediction
+http://www.gamlss.com/wp-content/uploads/2013/01/gamlss-manual.pdf
+
+
